@@ -30,7 +30,7 @@ from sklearn.metrics import f1_score, multilabel_confusion_matrix, classificatio
 from transformers import AutoModel, AutoTokenizer
 
 DATA_PATH = r'C:\Users\molly\COM6911\com6911-teamdn1\annotated_data\full\combined_complete.xlsx'
-FASTTEXT_PATH = r'C:\Users\molly\COM6911\com6911-teamdn1\cc.en.300.vec'
+FASTTEXT_PATH = r'C:\Users\molly\COM6911\cc.en.300.vec'
 RANDOM_SEED = 42
 MODEL_TYPE    = 'cnn_rnn'  # choose from ['textcnn','bilstm','cnn_rnn','han','transformer']
 # similar f1 scores

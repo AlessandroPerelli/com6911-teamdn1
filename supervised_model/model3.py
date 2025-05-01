@@ -37,7 +37,7 @@ np.random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
 DATA_PATH     = 'C:/Users/molly/COM6911/com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
-FASTTEXT_PATH = 'C:/Users/molly/COM6911/com6911-teamdn1/cc.en.300.vec'
+FASTTEXT_PATH = 'C:/Users/molly/COM6911/cc.en.300.vec'
 CACHE_PATH    = 'embedding_matrix.npy'
 MAX_VOCAB     = 20000
 MAX_LEN       = 100

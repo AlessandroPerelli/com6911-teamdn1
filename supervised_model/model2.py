@@ -32,7 +32,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
 
 DATA_PATH       = 'C:/Users/molly/COM6911/com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
-FASTTEXT_PATH   = 'C:/Users/molly/COM6911/com6911-teamdn1/cc.en.300.vec'
+FASTTEXT_PATH   = 'C:/Users/molly/COM6911/cc.en.300.vec'
 SPACY_MODEL     = 'en_core_web_sm'
 LABEL_MAP       = {
     1: 'mobility',
