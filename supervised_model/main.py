@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 from gensim.models import KeyedVectors
+import matplotlib.pyplot as plt
 import nltk
 nltk.download('punkt', quiet=True)
 from nltk.tokenize import word_tokenize
@@ -14,13 +15,13 @@ import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, multilabel_confusion_matrix, classification_report
+from sklearn.metrics import roc_curve, auc, f1_score, multilabel_confusion_matrix
 
 # configuration
 data_path = r'C:/Users/molly/COM6911/com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
 fasttext_path = r'C:/Users/molly/COM6911/cc.en.300.vec'
 random_seed = 44
-embedding_cache = 'embedding_matrix.npy'
+embedding_cache = 'COM6911/embedding_matrix.npy'
 
 # hyperparameters
 MAX_VOCAB = 1000
@@ -155,11 +156,15 @@ criterion = nn.BCELoss()
 optimiser = optim.Adam(model.parameters(), lr=LR)
 
 # training loop
+train_losses, val_losses = [], []
+train_f1s, val_f1s       = [], []
 best_f1 = 0.0
 no_improve = 0
 best_state = None
 for epoch in range(1, MAX_EPOCHS+1):
     model.train()
+    total_loss = 0
+    all_preds, all_targets = [], []
     for xb, yb in loader_train:
         xb, yb = xb.to(device), yb.to(device)
         optimiser.zero_grad()
@@ -167,18 +172,42 @@ for epoch in range(1, MAX_EPOCHS+1):
         loss  = criterion(preds, yb)
         loss.backward()
         optimiser.step()
+        total_loss += loss.item() * xb.size(0)
+        all_preds.append((preds >= 0.5).cpu().numpy())
+        all_targets.append(yb.cpu().numpy())
+    epoch_loss = total_loss / len(d_train)
+    train_losses.append(epoch_loss)
+    train_f1 = f1_score(np.vstack(all_targets), np.vstack(all_preds), average='micro')
+    train_f1s.append(train_f1)
 
     # validation
     model.eval()
-    all_p, all_t = [], []
+    val_loss = 0
+    all_preds, all_targets = [], []
     with torch.no_grad():
         for xb, yb in loader_val:
             xb, yb = xb.to(device), yb.to(device)
-            p = (model(xb) >= 0.5).float().cpu().numpy()
-            all_p.append(p); all_t.append(yb.cpu().numpy())
-    all_p = np.vstack(all_p); all_t = np.vstack(all_t)
-    val_f1 = f1_score(all_t, all_p, average='micro')
-    logging.info(f"Epoch {epoch}: Val micro-F1 = {val_f1:.4f}")
+            preds = model(xb)
+            loss = criterion(preds, yb)
+            val_loss += loss.item() * xb.size(0)
+            all_preds.append((preds >= 0.5).cpu().numpy())
+            all_targets.append(yb.cpu().numpy())
+    epoch_val_loss = val_loss / len(d_val)
+    val_losses.append(epoch_val_loss)
+    preds_val = np.vstack(all_preds)
+    targets_val = np.vstack(all_targets)
+    val_f1 = f1_score(targets_val, preds_val, average='micro')
+    val_f1s.append(val_f1)
+
+    logging.info(
+        f"Epoch {epoch}: "
+        f"Train Loss={epoch_loss:.4f}, "
+        f"Val Loss={epoch_val_loss:.4f}, "
+        f"Train F1={train_f1:.4f}, "
+        f"Val F1={val_f1:.4f}"
+    )
+    
+    # early stopping
     if val_f1 > best_f1:
         best_f1 = val_f1
         no_improve = 0
@@ -195,47 +224,97 @@ model.eval()
 all_p, all_t = [], []
 with torch.no_grad():
     for xb, yb in loader_test:
-        xb, yb = xb.to(device), yb.to(device)
-        p = (model(xb) >= 0.5).float().cpu().numpy()
-        all_p.append(p); all_t.append(yb.cpu().numpy())
-all_p = np.vstack(all_p); all_t = np.vstack(all_t)
+        xb = xb.to(device)
+        all_p.append(model(xb).cpu().numpy())
+        all_t.append(yb.numpy())
 
-# metrics
-micro = f1_score(all_t, all_p, average='micro')
-macro = f1_score(all_t, all_p, average='macro')
-logging.info(f"Test micro-F1: {micro:.4f}")
-logging.info(f"Test macro-F1: {macro:.4f}")
+y_pred_probs = np.vstack(all_p)
+y_test_array  = np.vstack(all_t)
+y_pred_bin = (y_pred_probs >= 0.5).astype(int)
 
-cm = multilabel_confusion_matrix(all_t, all_p)
-for i, cls in enumerate(label_map.values()):
-    tn, fp, fn, tp = cm[i].ravel()
-    logging.info(f"{cls}: TP={tp}, FP={fp}, FN={fn}, TN={tn}")
+num_classes = y_test_array.shape[1]
+agg_conf_mat = np.zeros((num_classes, num_classes), dtype=int)
+
+for true_row, pred_row in zip(y_test_array, y_pred_bin):
+    true_indices = np.where(true_row == 1)[0]
+    pred_indices = np.where(pred_row == 1)[0]
+    for t in true_indices:
+        for p in pred_indices:
+            agg_conf_mat[t, p] += 1
+
+# confusion matrix
+plt.figure(figsize=(6, 5))
+plt.imshow(agg_conf_mat, interpolation='nearest', cmap='Blues')
+plt.title('Aggregated Multi-Label Confusion Matrix')
+plt.colorbar()
+tick_marks = np.arange(num_classes)
+plt.xticks(tick_marks, [f'Pred {i+1}' for i in range(num_classes)], rotation=45)
+plt.yticks(tick_marks, [f'True {i+1}' for i in range(num_classes)])
+plt.xlabel('Predicted Class')
+plt.ylabel('True Class')
+plt.tight_layout()
+plt.savefig('COM6911/aggregated_multilabel_confusion_matrix.png')
+
+# compute final metrics
+test_micro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='micro')
+test_macro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='macro')
+logging.info(f"Test micro-F1: {test_micro:.4f}")
+logging.info(f"Test macro-F1: {test_macro:.4f}")
+
+# learning curves
+epochs = range(1, len(train_losses) + 1)
+plt.figure()
+plt.plot(epochs, train_losses, label='Train Loss')
+plt.plot(epochs, val_losses,   label='Val Loss')
+plt.title('Learning Curve: Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.grid(True)
+plt.savefig('COM6911/learning_curve_loss.png')
+
+plt.figure()
+plt.plot(epochs, train_f1s, label='Train F1')
+plt.plot(epochs, val_f1s,   label='Val F1')
+plt.title('Learning Curve: F1 Score')
+plt.xlabel('Epoch')
+plt.ylabel('F1 Score')
+plt.legend()
+plt.grid(True)
+plt.savefig('COM6911/learning_curve_f1.png')
+
+# ROC curves
+n_classes = y_test_array.shape[1]
+for i in range(n_classes):
+    fpr, tpr, _ = roc_curve(y_test_array[:, i], y_pred_probs[:, i])
+    roc_auc = auc(fpr, tpr)
+    plt.figure()
+    plt.plot(fpr, tpr, label=f'AUC = {roc_auc:.2f}')
+    plt.plot([0, 1], [0, 1], linestyle='--')
+    plt.title(f'ROC Curve: Class {i+1}')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'COM6911/roc_curve_class_{i+1}.png')
 
 # error analysis: five misclassified examples per class
 for class_idx, class_name in enumerate(label_map.values(), start=1):
-    mis_idx = [i for i in range(len(all_t)) if all_t[i, class_idx-1] != all_p[i, class_idx-1]]
-    print(f"Misclassified examples for class {class_idx} ({class_name})")
-    for idx in mis_idx[:5]:
+    mismatches = np.where(y_test_array[:, class_idx-1] != y_pred_bin[:, class_idx-1])[0]
+    print(f"Misclassified examples for class {class_idx} ({class_name}):")
+    for idx in mismatches[:5]:
         sentence = X_test[idx]
-        true_flag = all_t[idx, class_idx-1]
-        pred_flag = all_p[idx, class_idx-1]
-        true_label = class_idx if true_flag == 1 else 0
-        pred_label = class_idx if pred_flag == 1 else 0
-        print(f"""Sentence: {sentence}
-  True label: {true_label}
-  Pred label: {pred_label}
-""")
+        true_flag = y_test_array[idx, class_idx-1]
+        pred_flag = y_pred_bin[idx, class_idx-1]
+        print(f"Sentence: {sentence}\n  True label: {int(true_flag)}\n  Pred label: {int(pred_flag)}\n")
 
 # multi-label predictions: examples classified with more than one class
-multi_idx = [i for i in range(len(all_p)) if all_p[i].sum() > 1]
+multi_indices = np.where(y_pred_bin.sum(axis=1) > 1)[0]
 print("Examples predicted as multiple classes:")
-for idx in multi_idx[:5]:
+for idx in multi_indices[:5]:
     sentence = X_test[idx]
-    pred_flags = all_p[idx]
-    true_flags = all_t[idx]
-    pred_indices = [str(i+1) for i, flag in enumerate(pred_flags) if flag == 1]
-    true_indices = [str(i+1) for i, flag in enumerate(true_flags) if flag == 1]
-    print(f"""Sentence: {sentence}
-  True class: {', '.join(true_indices) if true_indices else '0'}        
-  Predicted class: {', '.join(pred_indices)}
-""")
+    true_flags = y_test_array[idx]
+    pred_flags = y_pred_bin[idx]
+    true_indices = [str(i+1) for i, f in enumerate(true_flags) if f]
+    pred_indices = [str(i+1) for i, f in enumerate(pred_flags) if f]
+    print(f"Sentence: {sentence}\n True class: {', '.join(true_indices) or '0'}\n Predicted class: {', '.join(pred_indices)}\n")
