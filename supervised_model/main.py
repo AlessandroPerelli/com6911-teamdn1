@@ -250,8 +250,15 @@ plt.xticks(tick_marks, [f'Pred {i+1}' for i in range(num_classes)], rotation=45)
 plt.yticks(tick_marks, [f'True {i+1}' for i in range(num_classes)])
 plt.xlabel('Predicted Class')
 plt.ylabel('True Class')
+thresh = agg_conf_mat.max() / 2.0
+for i in range(num_classes):
+    for j in range(num_classes):
+        count = agg_conf_mat[i, j]
+        color = 'white' if count > thresh else 'black'
+        plt.text(j, i, str(count), ha='center', va='center', color=color, fontsize=12)
 plt.tight_layout()
 plt.savefig('COM6911/aggregated_multilabel_confusion_matrix.png')
+plt.close()
 
 # compute final metrics
 test_micro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='micro')
