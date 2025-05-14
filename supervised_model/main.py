@@ -127,10 +127,8 @@ X_te_seq  = np.array([encode(s) for s in X_test_tok])
 class CNNRNNHybrid(nn.Module):
     def __init__(self, vocab_size, emb_matrix, filter_sizes, num_filters, rnn_hidden, dropout, num_classes):
         super().__init__()
-        self.embedding = nn.Embedding.from_pretrained(
-            torch.FloatTensor(emb_matrix), freeze=False, padding_idx=word2idx['<PAD>'])
-        self.convs = nn.ModuleList([nn.Conv1d(emb_matrix.shape[1], num_filters, fs)
-                                    for fs in filter_sizes])
+        self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(emb_matrix), freeze=False, padding_idx=word2idx['<PAD>'])
+        self.convs = nn.ModuleList([nn.Conv1d(emb_matrix.shape[1], num_filters, fs) for fs in filter_sizes])
         self.gru   = nn.GRU(num_filters * len(filter_sizes), rnn_hidden, batch_first=True)
         self.dropout = nn.Dropout(dropout)
         self.fc      = nn.Linear(rnn_hidden, num_classes)
@@ -260,6 +258,16 @@ test_micro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='
 test_macro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='macro')
 logging.info(f"Test micro-F1: {test_micro:.4f}")
 logging.info(f"Test macro-F1: {test_macro:.4f}")
+
+# print per-class TN, FP, FN, TP values and precision and recall and accuracy
+mcm = multilabel_confusion_matrix(y_test_array, y_pred_bin)
+for i, cm in enumerate(mcm, start=1):
+    tn, fp, fn, tp = cm.ravel()
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    accuracy  = (tp + tn) / (tp + tn + fp + fn)
+    print(f"Class {i} ({label_map[i]}): TN={tn}, FP={fp}, FN={fn}, TP={tp}, "
+          f"Precision={precision:.4f}, Recall={recall:.4f}, Accuracy={accuracy:.4f}")
 
 # learning curves
 epochs = range(1, len(train_losses) + 1)
