@@ -18,7 +18,7 @@ from sklearn.metrics import f1_score, multilabel_confusion_matrix, classificatio
 
 # configuration
 data_path = r'C:/Users/molly/COM6911/com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
-fasttext_path = r'C:/Users/molly/COM6911/cc.en.300.vec/cc.en.300.vec'
+fasttext_path = r'C:/Users/molly/COM6911/cc.en.300.vec'
 random_seed = 44
 embedding_cache = 'embedding_matrix.npy'
 
@@ -33,9 +33,10 @@ LR = 0.001
 BATCH_SIZE = 32
 NUM_CLASSES = 4
 MAX_EPOCHS = 20
-PATIENCE = 5
+PATIENCE = 3
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+
 random.seed(random_seed)
 np.random.seed(random_seed)
 torch.manual_seed(random_seed)
@@ -58,9 +59,7 @@ df = pd.read_excel(data_path)
 def parse_labels(item):
     parts = str(item).split(',')
     return [int(p.strip().strip('"').strip("'"))
-            for p in parts
-            if p.strip().strip('"').strip("'").isdigit()
-               and int(p.strip().strip('"').strip("'")) in label_map]
+            for p in parts if p.strip().strip('"').strip("'").isdigit() and int(p.strip().strip('"').strip("'")) in label_map]
 
 # filter positives and under-sample negatives
 df['labels'] = df['label'].apply(parse_labels)
@@ -84,10 +83,9 @@ mlb = MultiLabelBinarizer(classes=list(label_map.keys()))
 y = mlb.fit_transform(df['labels'])
 X = df['sentence'].astype(str).tolist()
 X_tmp, X_test, y_tmp, y_test = train_test_split(X, y, test_size=0.2, random_state=random_seed, stratify=y)
-X_train, X_val, y_train, y_val = train_test_split(X_tmp, y_tmp, test_size=0.25,
-                                                  random_state=random_seed, stratify=y_tmp)
+X_train, X_val, y_train, y_val = train_test_split(X_tmp, y_tmp, test_size=0.2, random_state=random_seed, stratify=y_tmp)
 
-# tokenization and build vocabulary
+# tokenisation and build vocabulary
 def tokenize(text): return [tok.lower() for tok in word_tokenize(text, preserve_line=True)]
 
 X_train_tok = [tokenize(s) for s in X_train]
@@ -95,9 +93,9 @@ X_val_tok   = [tokenize(s) for s in X_val]
 X_test_tok  = [tokenize(s) for s in X_test]
 
 counter = {}
-for sent in X_train_tok:
-    for tok in sent:
-        counter[tok] = counter.get(tok, 0) + 1
+for tok in X_train_tok:
+    for t in tok:
+        counter[t] = counter.get(t, 0) + 1
 most_common = sorted(counter.items(), key=lambda x: x[1], reverse=True)[:MAX_VOCAB-2]
 word2idx = {w: i+2 for i, (w, _) in enumerate(most_common)}
 word2idx['<PAD>'] = 0
@@ -152,10 +150,9 @@ loader_val   = DataLoader(d_val,   batch_size=BATCH_SIZE)
 loader_test  = DataLoader(d_test,  batch_size=BATCH_SIZE)
 
 # initialise model, loss and optimiser
-model = CNNRNNHybrid(vocab_size, embedding_matrix, FILTER_SIZES, NUM_FILTERS,
-                     RNN_HIDDEN, DROPOUT, NUM_CLASSES).to(device)
+model = CNNRNNHybrid(vocab_size, embedding_matrix, FILTER_SIZES, NUM_FILTERS, RNN_HIDDEN, DROPOUT, NUM_CLASSES).to(device)
 criterion = nn.BCELoss()
-optimizer = optim.Adam(model.parameters(), lr=LR)
+optimiser = optim.Adam(model.parameters(), lr=LR)
 
 # training loop
 best_f1 = 0.0
@@ -165,11 +162,11 @@ for epoch in range(1, MAX_EPOCHS+1):
     model.train()
     for xb, yb in loader_train:
         xb, yb = xb.to(device), yb.to(device)
-        optimizer.zero_grad()
+        optimiser.zero_grad()
         preds = model(xb)
         loss  = criterion(preds, yb)
         loss.backward()
-        optimizer.step()
+        optimiser.step()
 
     # validation
     model.eval()
