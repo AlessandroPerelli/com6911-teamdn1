@@ -87,11 +87,12 @@ X_tmp, X_test, y_tmp, y_test = train_test_split(X, y, test_size=0.2, random_stat
 X_train, X_val, y_train, y_val = train_test_split(X_tmp, y_tmp, test_size=0.2, random_state=random_seed, stratify=y_tmp)
 
 # tokenisation and build vocabulary
-def tokenize(text): return [tok.lower() for tok in word_tokenize(text, preserve_line=True)]
+def tokenise(text):
+    return [tok.lower() for tok in word_tokenize(text, preserve_line=True)]
 
-X_train_tok = [tokenize(s) for s in X_train]
-X_val_tok   = [tokenize(s) for s in X_val]
-X_test_tok  = [tokenize(s) for s in X_test]
+X_train_tok = [tokenise(s) for s in X_train]
+X_val_tok   = [tokenise(s) for s in X_val]
+X_test_tok  = [tokenise(s) for s in X_test]
 
 counter = {}
 for tok in X_train_tok:
