@@ -248,7 +248,7 @@ for i in range(num_classes):
         color = 'white' if count > thresh else 'black'
         plt.text(j, i, str(count), ha='center', va='center', color=color, fontsize=12)
 plt.tight_layout()
-plt.savefig('COM6911/aggregated_multilabel_confusion_matrix.png')
+plt.savefig('aggregated_multilabel_confusion_matrix.png')
 plt.close()
 
 # compute final metrics
@@ -277,7 +277,7 @@ plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.grid(True)
-plt.savefig('COM6911/learning_curve_loss.png')
+plt.savefig('learning_curve_loss.png')
 
 plt.figure()
 plt.plot(epochs, train_f1s, label='Train F1')
@@ -287,7 +287,7 @@ plt.xlabel('Epoch')
 plt.ylabel('F1 Score')
 plt.legend()
 plt.grid(True)
-plt.savefig('COM6911/learning_curve_f1.png')
+plt.savefig('learning_curve_f1.png')
 
 # ROC curves
 n_classes = y_test_array.shape[1]
@@ -302,7 +302,7 @@ for i in range(n_classes):
     plt.ylabel('True Positive Rate')
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'COM6911/roc_curve_class_{i+1}.png')
+    plt.savefig(f'roc_curve_class_{i+1}.png')
 
 # error analysis: five misclassified examples per class
 for class_idx, class_name in enumerate(label_map.values(), start=1):
