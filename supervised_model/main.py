@@ -26,7 +26,7 @@ embedding_cache = 'embedding_matrix.npy'
 # hyperparameters
 MAX_VOCAB = 1000
 MAX_LEN = 100
-FILTER_SIZES = [3, 4, 5]
+FILTER_SIZE = 3
 NUM_FILTERS = 100
 RNN_HIDDEN = 128
 DROPOUT = 0.5
@@ -116,24 +116,21 @@ X_te_seq  = np.array([encode(s) for s in X_test_tok])
 
 # model definition
 class CNNRNNHybrid(nn.Module):
-    def __init__(self, vocab_size, emb_matrix, filter_sizes, num_filters, rnn_hidden, dropout, num_classes):
+    def __init__(self, emb_matrix, filter_size, num_filters, rnn_hidden, dropout, num_classes):
         super().__init__()
+        emb_dim = emb_matrix.shape[1]
         self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(emb_matrix), freeze=False, padding_idx=word2idx['<PAD>'])
-        self.convs = nn.ModuleList([nn.Conv1d(emb_matrix.shape[1], num_filters, fs) for fs in filter_sizes])
-        self.pools = nn.ModuleList([nn.AdaptiveMaxPool1d(output_size=1) for _ in filter_sizes])
-        self.gru   = nn.GRU(num_filters * len(filter_sizes), rnn_hidden, batch_first=True)
+        self.conv = nn.Conv1d(emb_dim, num_filters, filter_size)
+        self.pool = nn.AdaptiveMaxPool1d(1)
+        self.gru   = nn.GRU(num_filters, rnn_hidden, batch_first=True)
         self.dropout = nn.Dropout(dropout)
         self.fc      = nn.Linear(rnn_hidden, num_classes)
 
     def forward(self, x):
         emb = self.embedding(x).transpose(1, 2)
-        conv_outs = []
-        for conv, pool in zip(self.convs, self.pools):
-            c = F.relu(conv(emb))
-            p = pool(c).squeeze(-1)
-            conv_outs.append(p)
-        cat = torch.cat(conv_outs, dim=1).unsqueeze(1)
-        _, h = self.gru(cat)
+        c = F.relu(self.conv(emb))
+        p = self.pool(c).squeeze(-1).unsqueeze(1)
+        _, h = self.gru(p)
         out = self.fc(self.dropout(h.squeeze(0)))
         return torch.sigmoid(out)
 
@@ -146,7 +143,7 @@ loader_val   = DataLoader(d_val,   batch_size=BATCH_SIZE)
 loader_test  = DataLoader(d_test,  batch_size=BATCH_SIZE)
 
 # initialise model, loss and optimiser
-model = CNNRNNHybrid(vocab_size, embedding_matrix, FILTER_SIZES, NUM_FILTERS, RNN_HIDDEN, DROPOUT, NUM_CLASSES).to(device)
+model = CNNRNNHybrid(embedding_matrix, FILTER_SIZE, NUM_FILTERS, RNN_HIDDEN, DROPOUT, NUM_CLASSES).to(device)
 criterion = nn.BCELoss()
 optimiser = optim.Adam(model.parameters(), lr=LR)
 
@@ -240,7 +237,7 @@ for true_row, pred_row in zip(y_test_array, y_pred_bin):
 # confusion matrix
 plt.figure(figsize=(6, 5))
 plt.imshow(agg_conf_mat, interpolation='nearest', cmap='Blues')
-plt.title('Aggregated Multi-Label Confusion Matrix')
+plt.title('Multi-Label Confusion Matrix')
 plt.colorbar()
 tick_marks = np.arange(num_classes)
 plt.xticks(tick_marks, [f'Pred {i+1}' for i in range(num_classes)], rotation=45)
@@ -254,7 +251,7 @@ for i in range(num_classes):
         color = 'white' if count > thresh else 'black'
         plt.text(j, i, str(count), ha='center', va='center', color=color, fontsize=12)
 plt.tight_layout()
-plt.savefig('aggregated_multilabel_confusion_matrix.png')
+plt.savefig('multilabel_confusion_matrix.png')
 plt.close()
 
 # compute final metrics
