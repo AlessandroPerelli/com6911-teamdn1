@@ -120,16 +120,22 @@ class CNNRNNHybrid(nn.Module):
         super().__init__()
         self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(emb_matrix), freeze=False, padding_idx=word2idx['<PAD>'])
         self.convs = nn.ModuleList([nn.Conv1d(emb_matrix.shape[1], num_filters, fs) for fs in filter_sizes])
-        self.gru   = nn.LSTM(num_filters * len(filter_sizes), rnn_hidden, batch_first=True)
+        self.pools = nn.ModuleList([nn.AdaptiveMaxPool1d(output_size=1) for _ in filter_sizes])
+        self.gru   = nn.GRU(num_filters * len(filter_sizes), rnn_hidden, batch_first=True)
         self.dropout = nn.Dropout(dropout)
         self.fc      = nn.Linear(rnn_hidden, num_classes)
 
     def forward(self, x):
         emb = self.embedding(x).transpose(1, 2)
-        conv_outs = [F.relu(conv(emb)).max(dim=2)[0] for conv in self.convs]
+        conv_outs = []
+        for conv, pool in zip(self.convs, self.pools):
+            c = F.relu(conv(emb))
+            p = pool(c).squeeze(-1)
+            conv_outs.append(p)
         cat = torch.cat(conv_outs, dim=1).unsqueeze(1)
-        _, (h, _) = self.gru(cat)
-        return torch.sigmoid(self.fc(self.dropout(h.squeeze(0))))
+        _, h = self.gru(cat)
+        out = self.fc(self.dropout(h.squeeze(0)))
+        return torch.sigmoid(out)
 
 # data loaders
 d_train = TensorDataset(torch.LongTensor(X_tr_seq), torch.FloatTensor(y_train))
