@@ -18,10 +18,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc, f1_score, multilabel_confusion_matrix
 
 # configuration
-data_path = r'C:/Users/molly/COM6911/com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
-fasttext_path = r'C:/Users/molly/COM6911/cc.en.300.vec'
+data_path = r'com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
+fasttext_path = r'cc.en.300.vec'
 random_seed = 44
-embedding_cache = 'COM6911/embedding_matrix.npy'
+embedding_cache = 'embedding_matrix.npy'
 
 # hyperparameters
 MAX_VOCAB = 1000
@@ -64,16 +64,6 @@ def parse_labels(item):
 
 # filter positives and under-sample negatives
 df['labels'] = df['label'].apply(parse_labels)
-
-# sanity check: raw label vs parsed labels
-print("RAW VS PARSED LABELS")
-pos_df = df[df['labels'].map(len) > 0]
-for i, row in pos_df.head(10).iterrows():
-    raw_label = row['label']
-    parsed    = parse_labels(raw_label)
-    print(f"{i}) Raw label = {raw_label!r} Parsed label= {parsed}")
-    print(f"  Sentence: {row['sentence']!r}\n")
-
 pos_df = df[df['labels'].map(len) > 0]
 neg_df = df[df['labels'].map(len) == 0]
 neg_sample = neg_df.sample(frac=0.05, random_state=random_seed)
@@ -130,7 +120,7 @@ class CNNRNNHybrid(nn.Module):
         super().__init__()
         self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(emb_matrix), freeze=False, padding_idx=word2idx['<PAD>'])
         self.convs = nn.ModuleList([nn.Conv1d(emb_matrix.shape[1], num_filters, fs) for fs in filter_sizes])
-        self.gru   = nn.GRU(num_filters * len(filter_sizes), rnn_hidden, batch_first=True)
+        self.gru   = nn.LSTM(num_filters * len(filter_sizes), rnn_hidden, batch_first=True)
         self.dropout = nn.Dropout(dropout)
         self.fc      = nn.Linear(rnn_hidden, num_classes)
 
@@ -138,7 +128,7 @@ class CNNRNNHybrid(nn.Module):
         emb = self.embedding(x).transpose(1, 2)
         conv_outs = [F.relu(conv(emb)).max(dim=2)[0] for conv in self.convs]
         cat = torch.cat(conv_outs, dim=1).unsqueeze(1)
-        _, h = self.gru(cat)
+        _, (h, _) = self.gru(cat)
         return torch.sigmoid(self.fc(self.dropout(h.squeeze(0))))
 
 # data loaders
