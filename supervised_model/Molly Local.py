@@ -15,18 +15,18 @@ import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve, auc, f1_score, multilabel_confusion_matrix
+from sklearn.metrics import f1_score, multilabel_confusion_matrix
 
 # configuration
-data_path = r'com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
-fasttext_path = r'cc.en.300.vec'
+data_path = r'C:/Users/molly/COM6911/com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
+fasttext_path = r'C:/Users/molly/COM6911/cc.en.300.vec'
 random_seed = 44
-embedding_cache = 'embedding_matrix.npy'
+embedding_cache = 'COM6911/embedding_matrix.npy'
 
 # hyperparameters
 MAX_VOCAB = 1000
 MAX_LEN = 100
-FILTER_SIZE = 3
+FILTER_SIZE = 2 # optimised between (1-7)
 NUM_FILTERS = 100
 RNN_HIDDEN = 128
 DROPOUT = 0.5
@@ -118,9 +118,8 @@ X_te_seq  = np.array([encode(s) for s in X_test_tok])
 class CNNRNNHybrid(nn.Module):
     def __init__(self, emb_matrix, filter_size, num_filters, rnn_hidden, dropout, num_classes):
         super().__init__()
-        emb_dim = emb_matrix.shape[1]
         self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(emb_matrix), freeze=False, padding_idx=word2idx['<PAD>'])
-        self.conv = nn.Conv1d(emb_dim, num_filters, filter_size)
+        self.conv = nn.Conv1d(emb_matrix.shape[1], num_filters, filter_size)
         self.pool = nn.AdaptiveMaxPool1d(1)
         self.gru   = nn.GRU(num_filters, rnn_hidden, batch_first=True)
         self.dropout = nn.Dropout(dropout)
@@ -224,6 +223,22 @@ y_pred_probs = np.vstack(all_p)
 y_test_array  = np.vstack(all_t)
 y_pred_bin = (y_pred_probs >= 0.5).astype(int)
 
+# compute final metrics
+test_micro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='micro')
+test_macro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='macro')
+logging.info(f"Test micro-F1: {test_micro:.4f}")
+logging.info(f"Test macro-F1: {test_macro:.4f}")
+
+# print per-class TN, FP, FN, TP values and precision and recall and accuracy
+mcm = multilabel_confusion_matrix(y_test_array, y_pred_bin)
+for i, cm in enumerate(mcm, start=1):
+    tn, fp, fn, tp = cm.ravel()
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    accuracy  = (tp + tn) / (tp + tn + fp + fn)
+    print(f"Class {i} ({label_map[i]}): TN={tn}, FP={fp}, FN={fn}, TP={tp}, "
+          f"Precision={precision:.4f}, Recall={recall:.4f}, Accuracy={accuracy:.4f}")
+
 num_classes = y_test_array.shape[1]
 agg_conf_mat = np.zeros((num_classes, num_classes), dtype=int)
 
@@ -251,24 +266,8 @@ for i in range(num_classes):
         color = 'white' if count > thresh else 'black'
         plt.text(j, i, str(count), ha='center', va='center', color=color, fontsize=12)
 plt.tight_layout()
-plt.savefig('multilabel_confusion_matrix.png')
+plt.savefig('COM6911/multilabel_confusion_matrix.png')
 plt.close()
-
-# compute final metrics
-test_micro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='micro')
-test_macro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='macro')
-logging.info(f"Test micro-F1: {test_micro:.4f}")
-logging.info(f"Test macro-F1: {test_macro:.4f}")
-
-# print per-class TN, FP, FN, TP values and precision and recall and accuracy
-mcm = multilabel_confusion_matrix(y_test_array, y_pred_bin)
-for i, cm in enumerate(mcm, start=1):
-    tn, fp, fn, tp = cm.ravel()
-    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    accuracy  = (tp + tn) / (tp + tn + fp + fn)
-    print(f"Class {i} ({label_map[i]}): TN={tn}, FP={fp}, FN={fn}, TP={tp}, "
-          f"Precision={precision:.4f}, Recall={recall:.4f}, Accuracy={accuracy:.4f}")
 
 # learning curves
 epochs = range(1, len(train_losses) + 1)
@@ -280,7 +279,7 @@ plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.grid(True)
-plt.savefig('learning_curve_loss.png')
+plt.savefig('COM6911/learning_curve_loss.png')
 
 plt.figure()
 plt.plot(epochs, train_f1s, label='Train F1')
@@ -290,40 +289,20 @@ plt.xlabel('Epoch')
 plt.ylabel('F1 Score')
 plt.legend()
 plt.grid(True)
-plt.savefig('learning_curve_f1.png')
-
-# ROC curves
-n_classes = y_test_array.shape[1]
-for i in range(n_classes):
-    fpr, tpr, _ = roc_curve(y_test_array[:, i], y_pred_probs[:, i])
-    roc_auc = auc(fpr, tpr)
-    plt.figure()
-    plt.plot(fpr, tpr, label=f'AUC = {roc_auc:.2f}')
-    plt.plot([0, 1], [0, 1], linestyle='--')
-    plt.title(f'ROC Curve: Class {i+1}')
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(f'roc_curve_class_{i+1}.png')
+plt.savefig('COM6911/learning_curve_f1.png')
 
 # error analysis: five misclassified examples per class
 for class_idx, class_name in enumerate(label_map.values(), start=1):
     mismatches = np.where(y_test_array[:, class_idx-1] != y_pred_bin[:, class_idx-1])[0]
     print(f"Misclassified examples for class {class_idx} ({class_name}):")
     for idx in mismatches[:5]:
-        sentence = X_test[idx]
-        true_flag = y_test_array[idx, class_idx-1]
-        pred_flag = y_pred_bin[idx, class_idx-1]
-        print(f"Sentence: {sentence}\n  True label: {int(true_flag)}\n  Pred label: {int(pred_flag)}\n")
-
-# multi-label predictions: examples classified with more than one class
-multi_indices = np.where(y_pred_bin.sum(axis=1) > 1)[0]
-print("Examples predicted as multiple classes:")
-for idx in multi_indices[:5]:
-    sentence = X_test[idx]
-    true_flags = y_test_array[idx]
-    pred_flags = y_pred_bin[idx]
-    true_indices = [str(i+1) for i, f in enumerate(true_flags) if f]
-    pred_indices = [str(i+1) for i, f in enumerate(pred_flags) if f]
-    print(f"Sentence: {sentence}\n True class: {', '.join(true_indices) or '0'}\n Predicted class: {', '.join(pred_indices)}\n")
+        sentence   = X_test[idx]
+        true_flag  = y_test_array[idx, class_idx-1]
+        pred_flag  = y_pred_bin[idx, class_idx-1]
+        true_cls   = class_idx if true_flag  == 1 else 0
+        pred_cls   = class_idx if pred_flag  == 1 else 0
+        print(
+            f"Sentence: {sentence}\n"
+            f"  True class: {true_cls}\n"
+            f"  Pred class: {pred_cls}\n"
+        )    
