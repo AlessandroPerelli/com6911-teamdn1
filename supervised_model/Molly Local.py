@@ -76,13 +76,36 @@ X = df['sentence'].astype(str).tolist()
 X_tmp, X_test, y_tmp, y_test = train_test_split(X, y, test_size=0.2, random_state=random_seed, stratify=y)
 X_train, X_val, y_train, y_val = train_test_split(X_tmp, y_tmp, test_size=0.2, random_state=random_seed, stratify=y_tmp)
 
+# check split
+splits = {
+    'train': y_train,
+    'validation': y_val,
+    'test': y_test
+}
+records = []
+for name, y in splits.items():
+    total = y.shape[0]
+    class_counts = y.sum(axis=0)
+    negatives = np.sum(y.sum(axis=1) == 0)
+    records.append({
+        'split': name,
+        'total': total,
+        'class_1': int(class_counts[0]),
+        'class_2': int(class_counts[1]),
+        'class_3': int(class_counts[2]),
+        'class_4': int(class_counts[3]),
+        'no_label (0)': negatives
+    })
+df_counts = pd.DataFrame(records).set_index('split')
+print(df_counts)
+
 # tokenisation and build vocabulary
 def tokenise(text):
     return [tok.lower() for tok in word_tokenize(text, preserve_line=True)]
 
 X_train_tok = [tokenise(s) for s in X_train]
-X_val_tok   = [tokenise(s) for s in X_val]
-X_test_tok  = [tokenise(s) for s in X_test]
+X_val_tok = [tokenise(s) for s in X_val]
+X_test_tok = [tokenise(s) for s in X_test]
 
 counter = {}
 for tok in X_train_tok:
@@ -110,9 +133,9 @@ def encode(tokens):
     idxs = [word2idx.get(t, word2idx['<UNK>']) for t in tokens]
     return idxs[:MAX_LEN] + [word2idx['<PAD>']] * max(0, MAX_LEN - len(idxs))
 
-X_tr_seq  = np.array([encode(s) for s in X_train_tok])
+X_tr_seq = np.array([encode(s) for s in X_train_tok])
 X_val_seq = np.array([encode(s) for s in X_val_tok])
-X_te_seq  = np.array([encode(s) for s in X_test_tok])
+X_te_seq = np.array([encode(s) for s in X_test_tok])
 
 # model definition
 class CNNRNNHybrid(nn.Module):
@@ -121,9 +144,9 @@ class CNNRNNHybrid(nn.Module):
         self.embedding = nn.Embedding.from_pretrained(torch.FloatTensor(emb_matrix), freeze=False, padding_idx=word2idx['<PAD>'])
         self.conv = nn.Conv1d(emb_matrix.shape[1], num_filters, filter_size)
         self.pool = nn.AdaptiveMaxPool1d(1)
-        self.gru   = nn.GRU(num_filters, rnn_hidden, batch_first=True)
+        self.gru = nn.GRU(num_filters, rnn_hidden, batch_first=True)
         self.dropout = nn.Dropout(dropout)
-        self.fc      = nn.Linear(rnn_hidden, num_classes)
+        self.fc = nn.Linear(rnn_hidden, num_classes)
 
     def forward(self, x):
         emb = self.embedding(x).transpose(1, 2)
@@ -135,11 +158,11 @@ class CNNRNNHybrid(nn.Module):
 
 # data loaders
 d_train = TensorDataset(torch.LongTensor(X_tr_seq), torch.FloatTensor(y_train))
-d_val   = TensorDataset(torch.LongTensor(X_val_seq), torch.FloatTensor(y_val))
-d_test  = TensorDataset(torch.LongTensor(X_te_seq), torch.FloatTensor(y_test))
+d_val = TensorDataset(torch.LongTensor(X_val_seq), torch.FloatTensor(y_val))
+d_test = TensorDataset(torch.LongTensor(X_te_seq), torch.FloatTensor(y_test))
 loader_train = DataLoader(d_train, batch_size=BATCH_SIZE, shuffle=True)
-loader_val   = DataLoader(d_val,   batch_size=BATCH_SIZE)
-loader_test  = DataLoader(d_test,  batch_size=BATCH_SIZE)
+loader_val = DataLoader(d_val, batch_size=BATCH_SIZE)
+loader_test = DataLoader(d_test, batch_size=BATCH_SIZE)
 
 # initialise model, loss and optimiser
 model = CNNRNNHybrid(embedding_matrix, FILTER_SIZE, NUM_FILTERS, RNN_HIDDEN, DROPOUT, NUM_CLASSES).to(device)
@@ -148,7 +171,7 @@ optimiser = optim.Adam(model.parameters(), lr=LR)
 
 # training loop
 train_losses, val_losses = [], []
-train_f1s, val_f1s       = [], []
+train_f1s, val_f1s = [], []
 best_f1 = 0.0
 no_improve = 0
 best_state = None
@@ -160,7 +183,7 @@ for epoch in range(1, MAX_EPOCHS+1):
         xb, yb = xb.to(device), yb.to(device)
         optimiser.zero_grad()
         preds = model(xb)
-        loss  = criterion(preds, yb)
+        loss = criterion(preds, yb)
         loss.backward()
         optimiser.step()
         total_loss += loss.item() * xb.size(0)
@@ -220,7 +243,7 @@ with torch.no_grad():
         all_t.append(yb.numpy())
 
 y_pred_probs = np.vstack(all_p)
-y_test_array  = np.vstack(all_t)
+y_test_array = np.vstack(all_t)
 y_pred_bin = (y_pred_probs >= 0.5).astype(int)
 
 # compute final metrics
@@ -234,46 +257,49 @@ mcm = multilabel_confusion_matrix(y_test_array, y_pred_bin)
 for i, cm in enumerate(mcm, start=1):
     tn, fp, fn, tp = cm.ravel()
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    accuracy  = (tp + tn) / (tp + tn + fp + fn)
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
     print(f"Class {i} ({label_map[i]}): TN={tn}, FP={fp}, FN={fn}, TP={tp}, "
           f"Precision={precision:.4f}, Recall={recall:.4f}, Accuracy={accuracy:.4f}")
 
-num_classes = y_test_array.shape[1]
-agg_conf_mat = np.zeros((num_classes, num_classes), dtype=int)
-
-for true_row, pred_row in zip(y_test_array, y_pred_bin):
-    true_indices = np.where(true_row == 1)[0]
-    pred_indices = np.where(pred_row == 1)[0]
-    for t in true_indices:
-        for p in pred_indices:
-            agg_conf_mat[t, p] += 1
-
 # confusion matrix
-plt.figure(figsize=(6, 5))
-plt.imshow(agg_conf_mat, interpolation='nearest', cmap='Blues')
-plt.title('Multi-Label Confusion Matrix')
+num_classes = y_test_array.shape[1]
+N = num_classes + 1
+agg_conf0 = np.zeros((N, N), dtype=int)
+for true_row, pred_row in zip(y_test_array, y_pred_bin):
+    true_idxs = np.where(true_row == 1)[0] + 1
+    pred_idxs = np.where(pred_row == 1)[0] + 1
+    if true_idxs.size == 0:
+        true_idxs = np.array([0])
+    if pred_idxs.size == 0:
+        pred_idxs = np.array([0])
+    for t in true_idxs:
+        for p in pred_idxs:
+            agg_conf0[t, p] += 1
+plt.figure(figsize=(6,6))
+plt.imshow(agg_conf0, interpolation='nearest', cmap='Blues')
+labels = ['No-label'] + [f'Class {i}' for i in range(1, num_classes+1)]
+plt.xticks(range(N), labels, rotation=45)
+plt.yticks(range(N), labels)
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix')
 plt.colorbar()
-tick_marks = np.arange(num_classes)
-plt.xticks(tick_marks, [f'Pred {i+1}' for i in range(num_classes)], rotation=45)
-plt.yticks(tick_marks, [f'True {i+1}' for i in range(num_classes)])
-plt.xlabel('Predicted Class')
-plt.ylabel('True Class')
-thresh = agg_conf_mat.max() / 2.0
-for i in range(num_classes):
-    for j in range(num_classes):
-        count = agg_conf_mat[i, j]
-        color = 'white' if count > thresh else 'black'
-        plt.text(j, i, str(count), ha='center', va='center', color=color, fontsize=12)
+thresh = agg_conf0.max() / 2.0
+for i in range(N):
+    for j in range(N):
+        count = agg_conf0[i, j]
+        colour = 'white' if count > thresh else 'black'
+        plt.text(j, i, str(count), ha='center', va='center', color=colour, fontsize=12)
 plt.tight_layout()
-plt.savefig('COM6911/multilabel_confusion_matrix.png')
+plt.savefig('COM6911/confusion_matrix.png')
 plt.close()
 
 # learning curves
 epochs = range(1, len(train_losses) + 1)
 plt.figure()
 plt.plot(epochs, train_losses, label='Train Loss')
-plt.plot(epochs, val_losses,   label='Val Loss')
+plt.plot(epochs, val_losses, label='Val Loss')
 plt.title('Learning Curve: Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
@@ -283,7 +309,7 @@ plt.savefig('COM6911/learning_curve_loss.png')
 
 plt.figure()
 plt.plot(epochs, train_f1s, label='Train F1')
-plt.plot(epochs, val_f1s,   label='Val F1')
+plt.plot(epochs, val_f1s, label='Val F1')
 plt.title('Learning Curve: F1 Score')
 plt.xlabel('Epoch')
 plt.ylabel('F1 Score')
@@ -296,13 +322,13 @@ for class_idx, class_name in enumerate(label_map.values(), start=1):
     mismatches = np.where(y_test_array[:, class_idx-1] != y_pred_bin[:, class_idx-1])[0]
     print(f"Misclassified examples for class {class_idx} ({class_name}):")
     for idx in mismatches[:5]:
-        sentence   = X_test[idx]
-        true_flag  = y_test_array[idx, class_idx-1]
-        pred_flag  = y_pred_bin[idx, class_idx-1]
-        true_cls   = class_idx if true_flag  == 1 else 0
-        pred_cls   = class_idx if pred_flag  == 1 else 0
+        sentence = X_test[idx]
+        true_flag = y_test_array[idx, class_idx-1]
+        pred_flag = y_pred_bin[idx, class_idx-1]
+        true_cls = class_idx if true_flag == 1 else 0
+        pred_cls = class_idx if pred_flag == 1 else 0
         print(
             f"Sentence: {sentence}\n"
             f"  True class: {true_cls}\n"
             f"  Pred class: {pred_cls}\n"
-        )    
+        )
