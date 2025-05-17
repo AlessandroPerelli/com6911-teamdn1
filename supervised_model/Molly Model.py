@@ -64,10 +64,23 @@ def parse_labels(item):
 
 # filter positives and under-sample negatives
 df['labels'] = df['label'].apply(parse_labels)
+
+# check samples before undersampling
+total_before   = df.shape[0]
+pos_before     = df[df['labels'].map(len) > 0].shape[0]
+neg_before     = df[df['labels'].map(len) == 0].shape[0]
+print(f"Before undersampling: total = {total_before}, positives = {pos_before}, negatives = {neg_before}")
+
 pos_df = df[df['labels'].map(len) > 0]
 neg_df = df[df['labels'].map(len) == 0]
 neg_sample = neg_df.sample(frac=0.05, random_state=random_seed)
 df = pd.concat([pos_df, neg_sample]).sample(frac=1, random_state=random_seed).reset_index(drop=True)
+
+# check samples after undersampling
+total_after   = df.shape[0]
+pos_after     = df[df['labels'].map(len) > 0].shape[0]
+neg_after     = df[df['labels'].map(len) == 0].shape[0]
+print(f"After undersampling: total = {total_after}, positives = {pos_after}, negatives = {neg_after}")
 
 # binarise labels and split
 mlb = MultiLabelBinarizer(classes=list(label_map.keys()))
