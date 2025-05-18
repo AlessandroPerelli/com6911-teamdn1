@@ -18,7 +18,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, multilabel_confusion_matrix
 
 # configuration
-data_path = r'com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
+data_path = r'com6911-teamdn1/annotated_data/full/combined_complete.csv'
 fasttext_path = r'cc.en.300.vec'
 random_seed = 44
 embedding_cache = 'embedding_matrix.npy'
@@ -296,7 +296,7 @@ plt.xticks(range(N), labels, rotation=45)
 plt.yticks(range(N), labels)
 plt.xlabel('Predicted')
 plt.ylabel('True')
-plt.title('Confusion Matrix')
+plt.title('CNN-RNN Confusion Matrix')
 plt.colorbar()
 thresh = agg_conf0.max() / 2.0
 for i in range(N):
@@ -305,7 +305,7 @@ for i in range(N):
         colour = 'white' if count > thresh else 'black'
         plt.text(j, i, str(count), ha='center', va='center', color=colour, fontsize=12)
 plt.tight_layout()
-plt.savefig('confusion_matrix.png')
+plt.savefig('cnn-rnn_confusion_matrix.png')
 plt.close()
 
 # learning curves
@@ -313,22 +313,22 @@ epochs = range(1, len(train_losses) + 1)
 plt.figure()
 plt.plot(epochs, train_losses, label='Train Loss')
 plt.plot(epochs, val_losses, label='Val Loss')
-plt.title('Learning Curve: Loss')
+plt.title('CNN-RNN Learning Curve: Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.grid(True)
-plt.savefig('learning_curve_loss.png')
+plt.savefig('cnn-rnn_learning_curve_loss.png')
 
 plt.figure()
 plt.plot(epochs, train_f1s, label='Train F1')
 plt.plot(epochs, val_f1s, label='Val F1')
-plt.title('Learning Curve: F1 Score')
+plt.title('CNN-RNN Learning Curve: F1 Score')
 plt.xlabel('Epoch')
 plt.ylabel('F1 Score')
 plt.legend()
 plt.grid(True)
-plt.savefig('learning_curve_f1.png')
+plt.savefig('cnn-rnn_learning_curve_f1.png')
 
 # error analysis: five misclassified examples per class
 for class_idx, class_name in enumerate(label_map.values(), start=1):
