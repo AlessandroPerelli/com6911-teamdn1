@@ -18,10 +18,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, multilabel_confusion_matrix
 
 # configuration
-data_path = r'C:/Users/molly/COM6911/com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
-fasttext_path = r'C:/Users/molly/COM6911/cc.en.300.vec'
+data_path = r'com6911-teamdn1/annotated_data/full/combined_complete.xlsx'
+fasttext_path = r'cc.en.300.vec'
 random_seed = 44
-embedding_cache = 'COM6911/embedding_matrix.npy'
+embedding_cache = 'embedding_matrix.npy'
 
 # hyperparameters
 MAX_VOCAB = 1000
@@ -62,7 +62,7 @@ def parse_labels(item):
     return [int(p.strip().strip('"').strip("'"))
             for p in parts if p.strip().strip('"').strip("'").isdigit() and int(p.strip().strip('"').strip("'")) in label_map]
 
-# filter positives and under-sample negatives
+# under-sample negatives
 df['labels'] = df['label'].apply(parse_labels)
 
 # check samples before undersampling
@@ -89,7 +89,7 @@ X = df['sentence'].astype(str).tolist()
 X_tmp, X_test, y_tmp, y_test = train_test_split(X, y, test_size=0.2, random_state=random_seed, stratify=y)
 X_train, X_val, y_train, y_val = train_test_split(X_tmp, y_tmp, test_size=0.2, random_state=random_seed, stratify=y_tmp)
 
-# check split
+# check data split
 splits = {
     'train': y_train,
     'validation': y_val,
@@ -112,7 +112,7 @@ for name, y in splits.items():
 df_counts = pd.DataFrame(records).set_index('split')
 print(df_counts)
 
-# tokenisation and build vocabulary
+# tokenisation and build vocab
 def tokenise(text):
     return [tok.lower() for tok in word_tokenize(text, preserve_line=True)]
 
@@ -265,7 +265,7 @@ test_macro = f1_score(y_test_array, (y_pred_probs >= 0.5).astype(int), average='
 logging.info(f"Test micro-F1: {test_micro:.4f}")
 logging.info(f"Test macro-F1: {test_macro:.4f}")
 
-# print per-class TN, FP, FN, TP values and precision and recall and accuracy
+# print evaluation metrics
 mcm = multilabel_confusion_matrix(y_test_array, y_pred_bin)
 for i, cm in enumerate(mcm, start=1):
     tn, fp, fn, tp = cm.ravel()
@@ -305,7 +305,7 @@ for i in range(N):
         colour = 'white' if count > thresh else 'black'
         plt.text(j, i, str(count), ha='center', va='center', color=colour, fontsize=12)
 plt.tight_layout()
-plt.savefig('COM6911/confusion_matrix.png')
+plt.savefig('confusion_matrix.png')
 plt.close()
 
 # learning curves
@@ -318,7 +318,7 @@ plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.grid(True)
-plt.savefig('COM6911/learning_curve_loss.png')
+plt.savefig('learning_curve_loss.png')
 
 plt.figure()
 plt.plot(epochs, train_f1s, label='Train F1')
@@ -328,7 +328,7 @@ plt.xlabel('Epoch')
 plt.ylabel('F1 Score')
 plt.legend()
 plt.grid(True)
-plt.savefig('COM6911/learning_curve_f1.png')
+plt.savefig('learning_curve_f1.png')
 
 # error analysis: five misclassified examples per class
 for class_idx, class_name in enumerate(label_map.values(), start=1):
