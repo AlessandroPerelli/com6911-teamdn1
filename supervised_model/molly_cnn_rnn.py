@@ -18,8 +18,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, multilabel_confusion_matrix
 
 # configuration
-data_path = r'com6911-teamdn1/annotated_data/full/combined_complete.csv'
-fasttext_path = r'cc.en.300.vec'
+data_path = 'annotated_data/full/combined_complete.csv'
+fasttext_path = 'cc.en.300.vec'
 random_seed = 44
 embedding_cache = 'embedding_matrix.npy'
 
