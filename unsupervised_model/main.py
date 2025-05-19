@@ -36,9 +36,9 @@ from transformers import AutoModel, AutoTokenizer
 from wordcloud import WordCloud
 
 # Global variables
-FILE_PATH = "Data/multi_category.csv"
+FILE_PATH = "annotated_data/multiple-categories/multi_category.csv"
 NUM_CLUSTERS = 4
-OUTPUT_DIR = "Outputs"
+OUTPUT_DIR = "unsupervised_model/output"
 SEED = 314159
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
