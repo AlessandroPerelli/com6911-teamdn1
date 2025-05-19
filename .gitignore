@@ -1,1 +1,2 @@
 fasttext/cc.en.300.vec
+embedding_matrix.npy

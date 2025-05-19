@@ -19,7 +19,7 @@ from sklearn.metrics import f1_score, multilabel_confusion_matrix
 
 # configuration
 data_path = 'annotated_data/full/combined_complete.csv'
-fasttext_path = 'cc.en.300.vec'
+fasttext_path = 'fasttext/cc.en.300.vec'
 random_seed = 44
 embedding_cache = 'embedding_matrix.npy'
 
