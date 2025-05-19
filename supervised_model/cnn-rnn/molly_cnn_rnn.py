@@ -55,11 +55,7 @@ label_map = {
 }
 
 # load and preprocess data
-df_raw = pd.read_csv(data_path, header=None, names=['combined'], dtype=str)
-
-# added this to split csv into sentence and label
-df = df_raw['combined'].str.split(pat=',', n=1, expand=True)
-df.columns = ['sentence', 'label']
+df = pd.read_csv(data_path, dtype=str)
 
 def parse_labels(item):
     parts = str(item).split(',')
@@ -309,7 +305,7 @@ for i in range(N):
         colour = 'white' if count > thresh else 'black'
         plt.text(j, i, str(count), ha='center', va='center', color=colour, fontsize=12)
 plt.tight_layout()
-plt.savefig('cnn-rnn_confusion_matrix.png')
+plt.savefig('supervised_model/cnn-rnn/cnn-rnn_confusion_matrix.png')
 plt.close()
 
 # learning curves
@@ -322,7 +318,7 @@ plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.grid(True)
-plt.savefig('cnn-rnn_learning_curve_loss.png')
+plt.savefig('supervised_model/cnn-rnn/cnn-rnn_learning_curve_loss.png')
 
 plt.figure()
 plt.plot(epochs, train_f1s, label='Train F1')
@@ -332,7 +328,7 @@ plt.xlabel('Epoch')
 plt.ylabel('F1 Score')
 plt.legend()
 plt.grid(True)
-plt.savefig('cnn-rnn_learning_curve_f1.png')
+plt.savefig('supervised_model/cnn-rnn/cnn-rnn_learning_curve_f1.png')
 
 # error analysis: five misclassified examples per class
 for class_idx, class_name in enumerate(label_map.values(), start=1):
