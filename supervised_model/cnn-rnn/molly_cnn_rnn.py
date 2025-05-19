@@ -55,7 +55,11 @@ label_map = {
 }
 
 # load and preprocess data
-df = pd.read_excel(data_path)
+df_raw = pd.read_csv(data_path, header=None, names=['combined'], dtype=str)
+
+# added this to split csv into sentence and label
+df = df_raw['combined'].str.split(pat=',', n=1, expand=True)
+df.columns = ['sentence', 'label']
 
 def parse_labels(item):
     parts = str(item).split(',')
