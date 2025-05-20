@@ -1,7 +1,6 @@
 # 📦 Install required packages
 from collections import Counter
 from nltk.stem import WordNetLemmatizer
-from google.colab import files
 import re
 import pandas as pd
 import matplotlib.pyplot as plt
