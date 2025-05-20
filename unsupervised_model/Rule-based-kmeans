@@ -8,22 +8,15 @@ from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 import umap
 import nltk
-
 nltk.download('punkt')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-print("Upload your 'sentences.txt' or .csv file")
-uploaded = files.upload()
-filename = list(uploaded.keys())[0]
 
 # Read text data
-if filename.endswith(".csv"):
-    df = pd.read_csv(filename)
-    raw_sentences = df.iloc[:, 0].dropna().astype(str).tolist()
-else:
-    with open(filename, "r", encoding="utf-8") as f:
-        raw_sentences = [line.strip() for line in f if line.strip()]
+filename = "annotated_data/sentences.csv"
+df = pd.read_csv(filename)
+raw_sentences = df.iloc[:, 0].dropna().astype(str).tolist()
 
 # Preprocessing: lowercase, remove symbols, collapse whitespace
 def preprocess_text(text):
@@ -222,8 +215,5 @@ output_df = pd.DataFrame({
     "Cluster ID": cluster_labels,
     "Token Count": token_lengths
 })
-output_file = "fsi_labeled_results.xlsx"
-output_df.to_excel(output_file, index=False)
-
-#  Download in Colab
-files.download(output_file)
+output_file = "fsi_labeled_results.csv"
+output_df.to_csv(output_file, index=False)
