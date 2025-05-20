@@ -1,17 +1,18 @@
 # 📦 Install required packages
-!pip install -q sentence-transformers umap-learn nltk matplotlib seaborn pandas openpyxl
-
-# 📚 NLTK setup
-import nltk
-nltk.download('punkt')
-nltk.download('wordnet')
-nltk.download('omw-1.4')
-
-# 📁 File upload
+from collections import Counter
+from nltk.stem import WordNetLemmatizer
 from google.colab import files
 import re
 import pandas as pd
 import matplotlib.pyplot as plt
+from sentence_transformers import SentenceTransformer
+from sklearn.cluster import KMeans
+import umap
+import nltk
+
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('omw-1.4')
 
 print("Upload your 'sentences.txt' or .csv file")
 uploaded = files.upload()
@@ -35,9 +36,6 @@ def preprocess_text(text):
 preprocessed_sentences = [preprocess_text(s) for s in raw_sentences]
 
 # Define ICF category keywords and phrases
-from nltk.stem import WordNetLemmatizer
-from collections import Counter
-
 lemmatizer = WordNetLemmatizer()
 def simple_tokenize(text): return re.findall(r'\b\w+\b', text.lower())
 
@@ -100,9 +98,6 @@ for orig, sent in zip(raw_sentences, preprocessed_sentences):
     labels.append(best_cat if (phrase_hits >= 1 or word_hits >= 1) else 0)
 
 #  BioBERT Embeddings + KMeans
-from sentence_transformers import SentenceTransformer
-from sklearn.cluster import KMeans
-
 model = SentenceTransformer("pritamdeka/BioBERT-mnli-snli-scinli-scitail-mednli-stsb")
 embeddings = model.encode(preprocessed_sentences, batch_size=32, show_progress_bar=True)
 
@@ -149,10 +144,6 @@ for c in range(10):
         print("  No labeled sentences in this cluster.")
 
 #  UMAP 3D Visualization
-import umap
-from mpl_toolkits.mplot3d import Axes3D
-import seaborn as sns
-
 reducer = umap.UMAP(n_components=3, n_neighbors=15, min_dist=0.1, random_state=42)
 reduced_3d = reducer.fit_transform(embeddings)
 
