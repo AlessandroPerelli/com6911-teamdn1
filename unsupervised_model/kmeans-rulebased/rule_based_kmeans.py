@@ -16,7 +16,7 @@ nltk.download('omw-1.4')
 # Read text data
 output = "unsupervised_model/kmeans-rulebased/output"
 os.makedirs(output, exist_ok=True)
-filename = "annotated_data/sentences.csv"
+filename = "annotated_data/for-unsupervised/sentences.csv"
 df = pd.read_csv(filename)
 raw_sentences = df.iloc[:, 0].dropna().astype(str).tolist()
 
