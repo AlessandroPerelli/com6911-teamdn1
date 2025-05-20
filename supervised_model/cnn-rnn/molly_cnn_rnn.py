@@ -19,6 +19,8 @@ from sklearn.metrics import f1_score, multilabel_confusion_matrix
 
 # configuration
 data_path = 'annotated_data/full/combined_complete.csv'
+output_dir = 'supervised_model/cnn-rnn/output'
+os.makedirs(output_dir, exist_ok=True)
 fasttext_path = 'fasttext/cc.en.300.vec'
 random_seed = 44
 embedding_cache = 'embedding_matrix.npy'
@@ -305,7 +307,7 @@ for i in range(N):
         colour = 'white' if count > thresh else 'black'
         plt.text(j, i, str(count), ha='center', va='center', color=colour, fontsize=12)
 plt.tight_layout()
-plt.savefig('supervised_model/cnn-rnn/cnn-rnn_confusion_matrix.png')
+plt.savefig(os.path.join(output_dir, 'cnn-rnn_confusion_matrix.png'))
 plt.close()
 
 # learning curves
@@ -318,7 +320,7 @@ plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.grid(True)
-plt.savefig('supervised_model/cnn-rnn/cnn-rnn_learning_curve_loss.png')
+plt.savefig(os.path.join(output_dir, 'cnn-rnn_learning_curve_loss.png'))
 
 plt.figure()
 plt.plot(epochs, train_f1s, label='Train F1')
@@ -328,7 +330,7 @@ plt.xlabel('Epoch')
 plt.ylabel('F1 Score')
 plt.legend()
 plt.grid(True)
-plt.savefig('supervised_model/cnn-rnn/cnn-rnn_learning_curve_f1.png')
+plt.savefig(os.path.join(output_dir, 'cnn-rnn_learning_curve_f1.png'))
 
 # error analysis: five misclassified examples per class
 for class_idx, class_name in enumerate(label_map.values(), start=1):

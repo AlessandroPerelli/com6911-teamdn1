@@ -17,6 +17,8 @@ from sklearn.metrics import f1_score, multilabel_confusion_matrix
 
 # directories
 DATA_PATH = 'annotated_data/full/combined_complete.csv'
+OUTPUT_DIR = 'supervised_model/fnn/output'
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 FASTTEXT_PATH = 'fasttext/cc.en.300.vec'
 EMBEDDING_CACHE = 'embedding_matrix.npy'
 RANDOM_SEED = 44
@@ -311,7 +313,7 @@ def main():
             plt.text(j, i, str(count), ha='center',
                      va='center', color=colour, fontsize=12)
     plt.tight_layout()
-    plt.savefig('supervised_model/fnn/fnn_confusion_matrix.png')
+    plt.savefig(os.path.join(OUTPUT_DIR, 'fnn_confusion_matrix.png'))
     plt.close()
 
     # learning curves
@@ -325,7 +327,7 @@ def main():
     plt.ylabel('Loss')
     plt.legend()
     plt.grid(True)
-    plt.savefig('supervised_model/fnn/fnn_learning_curve_loss.png')
+    plt.savefig(os.path.join(OUTPUT_DIR, 'fnn_learning_curve_loss.png'))
     plt.close()
 
     plt.figure()
@@ -336,7 +338,7 @@ def main():
     plt.ylabel('F1 Score')
     plt.legend()
     plt.grid(True)
-    plt.savefig('supervised_model/fnn/fnn_learning_curve_f1.png')
+    plt.savefig(os.path.join(OUTPUT_DIR, 'fnn_learning_curve_f1.png'))
     plt.close()
 
 
